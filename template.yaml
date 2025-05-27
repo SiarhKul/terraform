@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Dealwise Cognito User Pool
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: The name of the environment
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+
+Conditions:
+  IsProdEnvironment: !Equals [ !Ref EnvironmentName, "prod" ]
+
+Resources:
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${EnvironmentName}-machine-to-machine-user-pool
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage: "Your username is {username} and temporary password is {####}."
+          EmailSubject: "Your temporary credentials"
+          SMSMessage: "Your username is {username} and temporary password is {####}."
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Project
+          Value: m2m-auth
+        - Key: Terraform
+          Value: "false"
+        - Key: CloudFormation
+          Value: "true"
+
+  UserPoolResourceServer:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      Identifier: m2m-client
+      Name: User API
+      UserPoolId: !Ref CognitoUserPool
+      Scopes:
+        - ScopeName: "write"
+          ScopeDescription: "Write access"
+        - ScopeName: "read"
+          ScopeDescription: "Read access"
+
+  DealwiseCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DependsOn: UserPoolResourceServer
+    Properties:
+      ClientName: dealwise-client
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: true
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      AllowedOAuthFlows:
+        - client_credentials
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - m2m-client/read
+        - m2m-client/write
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  MachineToMachineUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Domain: !If
+        - IsProdEnvironment
+        - "m2m-rubicon-auth"
+        - !Sub "m2m-rubicon-${EnvironmentName}-auth"
+      ManagedLoginVersion: 2
+
+Outputs:
+  UserPoolId:
+    Description: The ID of the Cognito User Pool
+    Value: !Ref CognitoUserPool
+
+  UserPoolArn:
+    Description: The ARN of the Cognito User Pool
+    Value: !GetAtt CognitoUserPool.Arn
+
+  ClientId:
+    Description: The ID of the Cognito User Pool Client
+    Value: !Ref DealwiseCognitoUserPoolClient
+
+  Domain:
+    Description: The domain of the Cognito User Pool
+    Value: !If
+      - IsProdEnvironment
+      - "m2m-rubicon-auth"
+      - !Sub "m2m-rubicon-${EnvironmentName}-auth"
+
+  ResourceServerScopeIdentifiers:
+    Description: The full scope identifiers for the resource server
+    Value:
+      Fn::Join:
+        - ", "
+        - - "m2m-client/read"
+          - "m2m-client/write"
+
+  TokenEndpoint:
+    Description: The token endpoint for obtaining access tokens
+    Value: !Sub "https://${MachineToMachineUserPoolDomain.Domain}.auth.${AWS::Region}.amazoncognito.com/oauth2/token"
