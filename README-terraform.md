@@ -4,9 +4,9 @@ This Terraform configuration sets up an AWS Cognito User Pool specifically confi
 
 ## Overview
 
-Machine-to-Machine (M2M) authentication is used when one service needs to authenticate with another service without human intervention. This setup uses AWS Cognito with OAuth 2.0 Client Credentials flow to enable secure M2M communication.
+Machine-to-Machine (M2M) authentication enables platform-independent server-to-server communications without user interaction. This setup uses AWS Cognito with OAuth 2.0 Client Credentials flow to authorize API access with OAuth 2.0 scopes, providing secure M2M communication between services.
 
-> **Important**: This configuration is strictly for M2M authentication and does not include any email or end-user authentication features. All email-related configurations and user password authentication flows have been removed to ensure this is a pure M2M setup.
+> **Important**: This configuration is strictly for M2M authentication and does not include any email or end-user authentication features. All email-related configurations and user password authentication flows have been removed to ensure this is a pure M2M setup for server-to-server communications.
 
 ## Resources Created
 

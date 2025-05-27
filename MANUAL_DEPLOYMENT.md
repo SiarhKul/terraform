@@ -2,6 +2,17 @@
 
 This guide provides detailed step-by-step instructions for manually deploying the AWS Cognito M2M Authentication using Terraform.
 
+## Introduction
+
+Machine-to-Machine (M2M) authentication enables platform-independent server-to-server communications without user interaction. This setup uses AWS Cognito with OAuth 2.0 Client Credentials flow to authorize API access with OAuth 2.0 scopes, providing secure M2M communication between services.
+
+Unlike traditional user authentication, M2M authentication:
+- Does not involve any human interaction
+- Uses client credentials flow instead of user login flows
+- Authorizes API access using OAuth 2.0 scopes
+- Enables secure communication between different services and systems
+- Works across different platforms and environments
+
 ## Prerequisites
 
 ### 1. Install Terraform
@@ -95,7 +106,6 @@ region = us-east-1
 2. Copy the following files from this repository to your project directory:
    - `main.tf`
    - `variables.tf`
-   - `outputs.tf`
 
    You can download them individually or clone the entire repository:
    ```bash
