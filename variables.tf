@@ -33,3 +33,9 @@ variable "project_tag" {
   type        = string
   default     = "m2m-auth"
 }
+
+variable "callback_url" {
+  description = "Callback URL for the Cognito User Pool Client"
+  type        = string
+  default     = "https://exampleprototype.com"
+}

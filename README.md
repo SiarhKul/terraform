@@ -1,6 +1,6 @@
-# AWS Cognito M2M Authentication CloudFormation Template
+# AWS Cognito M2M Authentication Terraform Configuration
 
-This CloudFormation template sets up an AWS Cognito User Pool specifically configured for Machine-to-Machine (M2M) authentication.
+This Terraform configuration sets up an AWS Cognito User Pool specifically configured for Machine-to-Machine (M2M) authentication.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Machine-to-Machine (M2M) authentication is used when one service needs to authen
 
 ## Resources Created
 
-This CloudFormation template creates:
+This Terraform configuration creates:
 
 1. AWS Cognito User Pool
 2. App Client configured for Client Credentials flow
@@ -23,14 +23,17 @@ This CloudFormation template creates:
 
 ## Deployment to AWS
 
-### Setting up AWS Credentials
+### Prerequisites
 
-Before deploying, you need to set up your AWS credentials:
+Before deploying, you need to:
 
-1. **Install AWS CLI** (if not already installed):
+1. **Install Terraform** (if not already installed):
+   - Follow the [official Terraform installation guide](https://learn.hashicorp.com/tutorials/terraform/install-cli)
+
+2. **Install AWS CLI** (if not already installed):
    - Follow the [official AWS CLI installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 
-2. **Configure AWS credentials** using one of these methods:
+3. **Configure AWS credentials** using one of these methods:
 
    a. Using AWS CLI:
    ```bash
@@ -65,43 +68,31 @@ Before deploying, you need to set up your AWS credentials:
 
 ### Deployment Steps
 
-#### Option 1: AWS Management Console
-
-1. Log in to the [AWS CloudFormation Console](https://console.aws.amazon.com/cloudformation)
-2. Click "Create stack" > "With new resources (standard)"
-3. In the "Specify template" section, select "Upload a template file"
-4. Click "Choose file" and select the `template.yaml` file from this repository
-5. Click "Next"
-6. Enter a Stack name (e.g., "m2m-cognito-stack")
-7. Specify the EnvironmentName parameter (default is "dev")
-8. Click "Next" on the Configure stack options page
-9. Review the stack details and click "Create stack"
-10. Wait for the stack creation to complete
-
-#### Option 2: AWS CLI
-
 1. Clone this repository
 2. Navigate to the repository directory
-3. Deploy the CloudFormation stack:
+3. Initialize Terraform:
    ```bash
-   aws cloudformation create-stack \
-     --stack-name m2m-cognito-stack \
-     --template-body file://template.yaml \
-     --parameters ParameterKey=EnvironmentName,ParameterValue=dev \
-     --capabilities CAPABILITY_IAM
+   terraform init
    ```
-4. Monitor the stack creation:
+4. Review the planned changes:
    ```bash
-   aws cloudformation describe-stacks --stack-name m2m-cognito-stack
+   terraform plan
    ```
+5. Apply the Terraform configuration:
+   ```bash
+   terraform apply
+   ```
+   When prompted, type `yes` to confirm the deployment.
+
+6. Wait for the deployment to complete. Terraform will display the outputs when finished.
 
 ### Verification
 
 After deployment completes, verify your resources:
 
-1. Get the stack outputs to retrieve important resource identifiers:
+1. Get the Terraform outputs to retrieve important resource identifiers:
    ```bash
-   aws cloudformation describe-stacks --stack-name m2m-cognito-stack --query "Stacks[0].Outputs"
+   terraform output
    ```
 
 2. Verify in AWS Console:
@@ -115,33 +106,34 @@ After deployment completes, verify your resources:
 Common issues and solutions:
 
 1. **Domain name already exists**: The domain names must be globally unique. If deployment fails with a domain conflict:
-   - Edit the domain name in the template or use a different environment name
-   - Redeploy the stack
+   - Edit the domain_prefix variable in variables.tf or use a different environment_name
+   - Run terraform apply again
 
 2. **Permission errors**: Ensure your AWS credentials have sufficient permissions:
    - Required permissions: `AmazonCognitoPowerUser` or equivalent custom policy
-   - If using a custom policy, ensure it includes all necessary Cognito and CloudFormation permissions
+   - If using a custom policy, ensure it includes all necessary Cognito permissions
+
+3. **Sequencing conflict**: If you encounter a sequencing conflict during apply:
+   - Run terraform apply again (the resource server has a depends_on attribute to help with this)
 
 ## Using the M2M Authentication
 
 After deployment, you can obtain an access token using the Client Credentials flow:
 
-1. Get the client ID and client secret from the CloudFormation stack outputs:
+1. Get the client ID and client secret from the Terraform outputs:
    ```bash
-   aws cloudformation describe-stacks --stack-name m2m-cognito-stack --query "Stacks[0].Outputs[?OutputKey=='ClientId'].OutputValue" --output text
+   terraform output cognito_app_client_id
+   terraform output -json cognito_app_client_secret
    ```
 
-   For the client secret, you'll need to retrieve it from the AWS Cognito console or use the AWS CLI:
-   ```bash
-   aws cognito-idp describe-user-pool-client --user-pool-id $(aws cloudformation describe-stacks --stack-name m2m-cognito-stack --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text) --client-id $(aws cloudformation describe-stacks --stack-name m2m-cognito-stack --query "Stacks[0].Outputs[?OutputKey=='ClientId'].OutputValue" --output text) --query "UserPoolClient.ClientSecret" --output text
-   ```
+   Note: The client secret is marked as sensitive, so you need to use the -json flag to view it.
 
 2. Request an access token using curl:
    ```bash
    curl -X POST \
      --user <client_id>:<client_secret> \
-     -d 'grant_type=client_credentials&scope=m2m-client/read m2m-client/write' \
-     $(aws cloudformation describe-stacks --stack-name m2m-cognito-stack --query "Stacks[0].Outputs[?OutputKey=='TokenEndpoint'].OutputValue" --output text)
+     -d 'grant_type=client_credentials&scope=auth-resource-server/custom-scope.read auth-resource-server/custom-scope.write' \
+     $(terraform output -raw token_endpoint)
    ```
 
 3. Use the returned access token in the Authorization header of your API requests:
@@ -151,38 +143,27 @@ After deployment, you can obtain an access token using the Client Credentials fl
 
 ## Outputs
 
-The following outputs are available after stack creation:
+The following outputs are available after deployment:
 
-- `UserPoolId`: The ID of the Cognito User Pool
-- `UserPoolArn`: The ARN of the Cognito User Pool
-- `ClientId`: The ID of the app client
-- `Domain`: The Cognito domain
-- `TokenEndpoint`: The endpoint for obtaining access tokens
-- `ResourceServerScopeIdentifiers`: The full scope identifiers to use when requesting tokens
+- `cognito_user_pool_id`: The ID of the Cognito User Pool
+- `cognito_app_client_id`: The ID of the app client
+- `cognito_app_client_secret`: The secret of the app client (sensitive)
+- `cognito_domain`: The Cognito domain URL
+- `token_endpoint`: The endpoint for obtaining access tokens
 
 ## Cleaning Up Resources
 
-When you no longer need the AWS resources, you should delete the CloudFormation stack to avoid incurring charges:
+When you no longer need the AWS resources, you should destroy the Terraform resources to avoid incurring charges:
 
-### Option 1: AWS Management Console
+1. Navigate to the repository directory
+2. Run the following command:
+   ```bash
+   terraform destroy
+   ```
+3. When prompted, type `yes` to confirm the destruction of resources
+4. Wait for the destruction to complete
 
-1. Log in to the [AWS CloudFormation Console](https://console.aws.amazon.com/cloudformation)
-2. Select the stack you created (e.g., "m2m-cognito-stack")
-3. Click "Delete"
-4. Confirm the deletion when prompted
-5. Wait for the stack deletion to complete
-
-### Option 2: AWS CLI
-
-Run the following command:
-```bash
-aws cloudformation delete-stack --stack-name m2m-cognito-stack
-```
-
-To monitor the deletion progress:
-```bash
-aws cloudformation describe-stacks --stack-name m2m-cognito-stack
-```
+This will remove all resources created by this Terraform configuration.
 
 ## Security Considerations
 
