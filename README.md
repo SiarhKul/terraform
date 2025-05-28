@@ -1,3 +1,5 @@
+https://dev.to/vixy88/aws-cognito-m2m-setup-with-terraform-3f6h
+
 # AWS Cognito M2M Authentication Terraform Configuration
 
 This Terraform configuration sets up an AWS Cognito User Pool specifically configured for Machine-to-Machine (M2M) authentication.
@@ -145,10 +147,9 @@ After deployment, you can obtain an access token using the OAuth 2.0 Client Cred
 
    Alternatively, you can use the Authorization header method:
    ```bash
-   curl -X POST \
-     -H "Authorization: Basic $(echo -n <client_id>:<client_secret> | base64)" \
-     -d 'grant_type=client_credentials&scope=auth-resource-server/custom-scope.read auth-resource-server/custom-scope.write' \
-     $(terraform output -raw token_endpoint)
+   curl -X POST <url>/oauth2/token \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+   -d "grant_type=client_credentials&client_id=<client_id>&client_secret=<client_secret>&scope=<scope>"
    ```
 
 4. The response will contain the access token, token type, and expiration:
@@ -165,70 +166,26 @@ After deployment, you can obtain an access token using the OAuth 2.0 Client Cred
    Authorization: Bearer <access_token>
    ```
 
-### Testing the Token
+### Resource Server and Scopes
 
-To verify your token works correctly:
+This configuration includes a Cognito Resource Server with the following scopes:
 
-```bash
-# Decode and inspect the JWT token (requires jq)
-echo <access_token> | cut -d. -f2 | base64 -d 2>/dev/null | jq
+- `auth-resource-server/custom-scope.read`: Provides read access to protected resources
+- `auth-resource-server/custom-scope.write`: Provides write access to protected resources
 
-# Test against a protected API endpoint
-curl -X GET \
-  -H "Authorization: Bearer <access_token>" \
-  https://your-api-endpoint.com/protected-resource
-```
+When requesting an access token, you can request one or both scopes depending on the level of access your application needs. For example:
 
-### Common OAuth 2.0 Parameters
+- For read-only access:
+  ```
+  grant_type=client_credentials&scope=auth-resource-server/custom-scope.read
+  ```
 
-When requesting tokens, you can use these parameters:
+- For write access only:
+  ```
+  grant_type=client_credentials&scope=auth-resource-server/custom-scope.write
+  ```
 
-- `grant_type`: Must be "client_credentials" for M2M authentication
-- `scope`: Space-separated list of scopes you're requesting access to
-- `client_id`: Your application's client ID (if not using Basic auth)
-- `client_secret`: Your application's client secret (if not using Basic auth)
-
-### Troubleshooting OAuth 2.0 Authentication
-
-Common issues and solutions:
-
-1. **Invalid client error**: Verify your client ID and secret are correct
-2. **Invalid scope error**: Ensure you're requesting scopes that are configured for your client
-3. **Token expired**: Request a new token when the current one expires
-4. **Base64 encoding issues**: Ensure proper encoding of credentials in the Authorization header
-
-## Outputs
-
-The following outputs are available after deployment:
-
-- `cognito_user_pool_id`: The ID of the Cognito User Pool
-- `cognito_app_client_id`: The ID of the app client
-- `cognito_app_client_secret`: The secret of the app client (sensitive)
-- `cognito_domain`: The Cognito domain URL
-- `token_endpoint`: The endpoint for obtaining access tokens
-
-## Cleaning Up Resources
-
-When you no longer need the AWS resources, you should destroy the Terraform resources to avoid incurring charges:
-
-1. Navigate to the repository directory
-2. Run the following command:
-   ```bash
-   terraform destroy
-   ```
-3. When prompted, type `yes` to confirm the destruction of resources
-4. Wait for the destruction to complete
-
-This will remove all resources created by this Terraform configuration.
-
-## Security Considerations
-
-- Store client credentials securely and rotate them regularly
-- Consider using AWS Secrets Manager for storing credentials
-- Limit the scopes to only what is necessary for the service
-- Use environment-specific deployments for proper isolation
-- Review and restrict IAM permissions for managing the Cognito resources
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- For both read and write access:
+  ```
+  grant_type=client_credentials&scope=auth-resource-server/custom-scope.read auth-resource-server/custom-scope.write
+  ```

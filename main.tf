@@ -20,26 +20,29 @@ resource "aws_cognito_user_pool_domain" "cognito_m2m_pool_main_domain" {
   user_pool_id = aws_cognito_user_pool.cognito_m2m_pool.id
 }
 
-resource "aws_cognito_resource_server" "cognito_m2m_pool_resource_server" {
-  depends_on   = [aws_cognito_user_pool_domain.cognito_m2m_pool_main_domain]
-  identifier   = "auth-resource-server"
-  name         = "${var.user_pool_name_prefix}-resource-server-${var.environment_name}"
-  user_pool_id = aws_cognito_user_pool.cognito_m2m_pool.id
-
-  scope {
-    scope_name        = "custom-scope.write"
-    scope_description = "Custom scope 1 for M2M prototype"
-  }
+resource "aws_cognito_resource_server" "resource_server" {
+  identifier = "auth-resource-server"
+  name       = "Auth Resource Server"
 
   scope {
     scope_name        = "custom-scope.read"
-    scope_description = "Custom scope 2 for M2M prototype"
+    scope_description = "Read access"
   }
+
+  scope {
+    scope_name        = "custom-scope.write"
+    scope_description = "Write access"
+  }
+
+  user_pool_id = aws_cognito_user_pool.cognito_m2m_pool.id
 }
+
+
 
 resource "aws_cognito_user_pool_client" "cognito_m2m_pool_client" {
   name                = "${var.user_pool_name_prefix}-client-${var.environment_name}"
   user_pool_id        = aws_cognito_user_pool.cognito_m2m_pool.id
+  depends_on          = [aws_cognito_resource_server.resource_server]
   explicit_auth_flows = ["ALLOW_REFRESH_TOKEN_AUTH"]
   auth_session_validity = 3
   refresh_token_validity = 5
@@ -50,16 +53,15 @@ resource "aws_cognito_user_pool_client" "cognito_m2m_pool_client" {
     access_token = "minutes"
     id_token = "minutes"
   }
-  allowed_oauth_flows = ["client_credentials"]
   allowed_oauth_flows_user_pool_client = true
-  supported_identity_providers         = ["COGNITO"]
+  allowed_oauth_flows = ["client_credentials"]
   allowed_oauth_scopes = [
     "auth-resource-server/custom-scope.write",
     "auth-resource-server/custom-scope.read"
   ]
+  callback_urls = [var.callback_url]
+  supported_identity_providers         = ["COGNITO"]
   generate_secret     = true
-  callback_urls       = [var.callback_url]
-  logout_urls         = [var.callback_url]
   enable_token_revocation = true
   prevent_user_existence_errors = "ENABLED"
 }
