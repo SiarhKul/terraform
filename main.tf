@@ -45,8 +45,10 @@ resource "aws_cognito_user_pool_client" "cognito_m2m_pool_client" {
   refresh_token_validity = 5
   access_token_validity = 60
   id_token_validity = 60
-  token_validity_units={
-
+  token_validity_units {
+    refresh_token = "days"
+    access_token = "minutes"
+    id_token = "minutes"
   }
   allowed_oauth_flows = ["client_credentials"]
   allowed_oauth_flows_user_pool_client = true
@@ -57,7 +59,9 @@ resource "aws_cognito_user_pool_client" "cognito_m2m_pool_client" {
   ]
   generate_secret     = true
   callback_urls       = [var.callback_url]
-
+  logout_urls         = [var.callback_url]
+  enable_token_revocation = true
+  prevent_user_existence_errors = "ENABLED"
 }
 
 output "cognito_user_pool_id" {

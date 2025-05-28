@@ -116,9 +116,11 @@ Common issues and solutions:
 3. **Sequencing conflict**: If you encounter a sequencing conflict during apply:
    - Run terraform apply again (the resource server has a depends_on attribute to help with this)
 
-## Using the M2M Authentication
+## Using the M2M Authentication with OAuth 2.0
 
-After deployment, you can obtain an access token using the Client Credentials flow:
+After deployment, you can obtain an access token using the OAuth 2.0 Client Credentials flow. This quick setup guide provides all the necessary commands to get started.
+
+### Quick Setup Guide for OAuth 2.0 Authentication
 
 1. Get the client ID and client secret from the Terraform outputs:
    ```bash
@@ -128,7 +130,12 @@ After deployment, you can obtain an access token using the Client Credentials fl
 
    Note: The client secret is marked as sensitive, so you need to use the -json flag to view it.
 
-2. Request an access token using curl:
+2. Get the token endpoint URL:
+   ```bash
+   terraform output -raw token_endpoint
+   ```
+
+3. Request an access token using curl (Basic Authentication method):
    ```bash
    curl -X POST \
      --user <client_id>:<client_secret> \
@@ -136,10 +143,59 @@ After deployment, you can obtain an access token using the Client Credentials fl
      $(terraform output -raw token_endpoint)
    ```
 
-3. Use the returned access token in the Authorization header of your API requests:
+   Alternatively, you can use the Authorization header method:
+   ```bash
+   curl -X POST \
+     -H "Authorization: Basic $(echo -n <client_id>:<client_secret> | base64)" \
+     -d 'grant_type=client_credentials&scope=auth-resource-server/custom-scope.read auth-resource-server/custom-scope.write' \
+     $(terraform output -raw token_endpoint)
+   ```
+
+4. The response will contain the access token, token type, and expiration:
+   ```json
+   {
+     "access_token": "eyJraWQiOiJ...[truncated]",
+     "expires_in": 3600,
+     "token_type": "Bearer"
+   }
+   ```
+
+5. Use the returned access token in the Authorization header of your API requests:
    ```
    Authorization: Bearer <access_token>
    ```
+
+### Testing the Token
+
+To verify your token works correctly:
+
+```bash
+# Decode and inspect the JWT token (requires jq)
+echo <access_token> | cut -d. -f2 | base64 -d 2>/dev/null | jq
+
+# Test against a protected API endpoint
+curl -X GET \
+  -H "Authorization: Bearer <access_token>" \
+  https://your-api-endpoint.com/protected-resource
+```
+
+### Common OAuth 2.0 Parameters
+
+When requesting tokens, you can use these parameters:
+
+- `grant_type`: Must be "client_credentials" for M2M authentication
+- `scope`: Space-separated list of scopes you're requesting access to
+- `client_id`: Your application's client ID (if not using Basic auth)
+- `client_secret`: Your application's client secret (if not using Basic auth)
+
+### Troubleshooting OAuth 2.0 Authentication
+
+Common issues and solutions:
+
+1. **Invalid client error**: Verify your client ID and secret are correct
+2. **Invalid scope error**: Ensure you're requesting scopes that are configured for your client
+3. **Token expired**: Request a new token when the current one expires
+4. **Base64 encoding issues**: Ensure proper encoding of credentials in the Authorization header
 
 ## Outputs
 
