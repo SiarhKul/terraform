@@ -1,22 +1,22 @@
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
 }
 
 resource "aws_cognito_user_pool" "cognito_m2m_pool" {
-  name = "${var.user_pool_name_prefix}-${var.environment_name}"
+  name = "m2m-dev-terraform"
 
   admin_create_user_config {
     allow_admin_create_user_only = true
   }
 
   tags = {
-    Environment = var.environment_name
-    Project     = var.project_tag
+    Environment = "dev"
+    Project     = "m2m-auth"
   }
 }
 
 resource "aws_cognito_user_pool_domain" "cognito_m2m_pool_main_domain" {
-  domain       = "${var.domain_prefix}-${var.environment_name}"
+  domain       = "m2m-rubicon-dev"
   user_pool_id = aws_cognito_user_pool.cognito_m2m_pool.id
 }
 
@@ -29,18 +29,12 @@ resource "aws_cognito_resource_server" "resource_server" {
     scope_description = "Read access"
   }
 
-  scope {
-    scope_name        = "custom-scope.write"
-    scope_description = "Write access"
-  }
 
   user_pool_id = aws_cognito_user_pool.cognito_m2m_pool.id
 }
 
-
-
 resource "aws_cognito_user_pool_client" "cognito_m2m_pool_client" {
-  name                = "${var.user_pool_name_prefix}-client-${var.environment_name}"
+  name                = "machine-to-machine-client-dev"
   user_pool_id        = aws_cognito_user_pool.cognito_m2m_pool.id
   depends_on          = [aws_cognito_resource_server.resource_server]
   explicit_auth_flows = ["ALLOW_REFRESH_TOKEN_AUTH"]
@@ -56,14 +50,13 @@ resource "aws_cognito_user_pool_client" "cognito_m2m_pool_client" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows = ["client_credentials"]
   allowed_oauth_scopes = [
-    "auth-resource-server/custom-scope.write",
     "auth-resource-server/custom-scope.read"
   ]
-  callback_urls = [var.callback_url]
+
   supported_identity_providers         = ["COGNITO"]
   generate_secret     = true
   enable_token_revocation = true
-  prevent_user_existence_errors = "ENABLED"
+
 }
 
 output "cognito_user_pool_id" {
@@ -80,9 +73,9 @@ output "cognito_app_client_secret" {
 }
 
 output "cognito_domain" {
-  value = "https://${aws_cognito_user_pool_domain.cognito_m2m_pool_main_domain.domain}.auth.${var.aws_region}.amazoncognito.com"
+  value = "https://${aws_cognito_user_pool_domain.cognito_m2m_pool_main_domain.domain}.auth.us-east-1.amazoncognito.com"
 }
 
 output "token_endpoint" {
-  value = "https://${aws_cognito_user_pool_domain.cognito_m2m_pool_main_domain.domain}.auth.${var.aws_region}.amazoncognito.com/oauth2/token"
+  value = "https://${aws_cognito_user_pool_domain.cognito_m2m_pool_main_domain.domain}.auth.us-east-1.amazoncognito.com/oauth2/token"
 }
