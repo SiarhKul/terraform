@@ -13,9 +13,8 @@ provider "aws" {
 
 module "cognito_user_pool" {
   source  = "lgallard/cognito-user-pool/aws"
-  version = "0.35.0"
-
   user_pool_name = "m2m-dev-terraform"
+  domain = "m2m-rubicon-dev"
 
   admin_create_user_config = {
     allow_admin_create_user_only = true
@@ -26,28 +25,26 @@ module "cognito_user_pool" {
     Project     = "m2m-auth"
   }
 
-  domain = "m2m-rubicon-dev"
 
   resource_servers = [
     {
       identifier = "auth-resource-server"
       name       = "Auth Resource Server"
-      scopes = [
+      scope = [
         {
-          scope_name        = "custom-scope.read"
+          scope_name        = "read"
           scope_description = "Read access"
         }
       ]
     }
   ]
 
-
   clients = [
     {
       name                             = "machine-to-machine-client-dev"
       allowed_oauth_flows              = ["client_credentials"]
       allowed_oauth_flows_user_pool_client = true
-      allowed_oauth_scopes             = ["auth-resource-server/custom-scope.read"]
+      allowed_oauth_scopes             = ["auth-resource-server/read"]
       generate_secret                  = true
       supported_identity_providers     = ["COGNITO"]
       explicit_auth_flows              = ["ALLOW_REFRESH_TOKEN_AUTH"]
@@ -63,9 +60,9 @@ module "cognito_user_pool" {
       enable_token_revocation = true
     }
   ]
-
-
 }
+
+
 
 output "cognito_user_pool_id" {
   value = module.cognito_user_pool.id
