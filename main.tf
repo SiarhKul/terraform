@@ -14,7 +14,7 @@ provider "aws" {
 module "cognito_user_pool" {
   source  = "lgallard/cognito-user-pool/aws"
   user_pool_name = "m2m-dev-terraform"
-  domain = "m2m-rubicon-dev"
+  domain = "auth.api.app.mercell"
 
   admin_create_user_config = {
     allow_admin_create_user_only = true
@@ -78,9 +78,9 @@ output "cognito_app_client_secret" {
 }
 
 output "cognito_domain" {
-  value = "https://m2m-rubicon-dev.auth.us-east-1.amazoncognito.com"
+  value = "https://${ module.cognito_user_pool.domain_app_version}"
 }
 
 output "token_endpoint" {
-  value = "https://m2m-rubicon-dev.auth.us-east-1.amazoncognito.com/oauth2/token"
+  value = "https://${module.cognito_user_pool.domain_app_version}/oauth2/token"
 }
